@@ -12,10 +12,11 @@
 #include <atomic>
 #include <thread>
 #include <QJsonObject>
+#include "feed.h"
 
-class Zmq_Feed { //}: public FeedBase{
+class Zmq_Feed : public FeedBase{
 public:
-    struct DataDecoderr{
+    struct DataDecoder:IFeedDataDecoder{
         Message* decode(lob_data_t* data);
     };
 

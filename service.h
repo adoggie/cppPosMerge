@@ -12,18 +12,26 @@
 #include <log4cplus/logger.h>
 #include <log4cplus/loggingmacros.h>
 
+
+
 #include "base.h"
 #include "worker.h"
 #include "feed.h"
 #include "fanout.h"
 #include "utils/timer.h"
 #include "message.h"
+#include "store_redis.h"
+#include "store_mssql.h"
 
 
-class Manager {
+class Manager: public IFeedUser {
 public:
     struct Settings{
         uint32_t fanout_interval;
+        uint32_t workers;
+        uint32_t sythesize_repeat;
+        std::string feed_type;
+        std::string position_cache_redis_addr;
     };
     bool init(const std::string& configfile);
     bool start();
@@ -36,11 +44,12 @@ public:
 
     void waitForShutdown();
     // log4cplus::Logger& getLogger()  { return logger_;}
+
 protected:
     bool  initTables();
 
 friend class Worker;
-    
+friend class Zmq_Feed;
     void onPosMessage(PosMessage * message);
     void onTimer();
 
@@ -49,6 +58,12 @@ friend class Worker;
     void addAcEntry(const AcEntry::Ptr ac);
     void initPosition();
     void sythesizePosition(SymbolIndex sidx, uint32_t repeat);
+    void onFeedRawData(lob_data_t * data);
+    void onMessage(Message * msg);
+
+    void loadPositions(std::vector<PosRecord>& pos_list);
+    void loadPosFromRedis(std::vector<PosRecord>& pos_list);
+    void loadAcEntries();
 private:
    
     std::vector<Worker::Ptr> workers_;
@@ -78,7 +93,10 @@ private:
 
     FeedBase::Ptr feeder_;  
     std::vector<FanoutBase::Ptr> fanouts_;
+    IFeedDataDecoder::Ptr  decoder_;
 
+    StoreRedis  store_redis_;
+    StoreMsSql  store_mssql_;
 };
 
 

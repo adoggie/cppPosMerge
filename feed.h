@@ -19,14 +19,13 @@ struct IFeedUser{
 };
 
 struct IFeedDataDecoder{
+    typedef std::shared_ptr<IFeedDataDecoder> Ptr;
     virtual Message* decode( lob_data_t* data) = 0;
 };
 
 struct FeedBase{
     typedef std::shared_ptr<FeedBase> Ptr;
-    enum{
-        MDL_FILE,
-        MDL_LIVE, // redis or websocket
+    enum{       
         ZMQ_LIVE
     };
 public:

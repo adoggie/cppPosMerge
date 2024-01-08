@@ -8,14 +8,20 @@
 
 #include "base.h"
 
+struct Message{
+
+};
 
 #pragma pack(push, 1)
-struct PosMessage{
+struct PosMessage:Message{
     uint32_t ver;
-    std::string    topic;
-    std::string    symbol;
-    std::string    ac;
+    std::string    topic; //25
+    std::string    symbol; //8
+    std::string    ac; //95
     double  position;
+    static const uint32_t PACKET_SIZE = 140;
+    
+    static PosMessage * decode(const uint8_t* data, size_t len);
 };
 #pragma pack(pop)
 

@@ -12,9 +12,9 @@ void Worker::enqueue( lob_data_t * data) {
     Message* msg = decoder_->decode(data);
     if(msg != nullptr){ // NOLINT
         Manager::instance().onMessage(msg);
-        delete msg ;
+        delete msg ;    
     }
-    lob_data_free(data);
+    // lob_data_free(data);
 }
 
 
@@ -33,7 +33,7 @@ void Worker::start(){  // NOLINT
                 Manager::instance().onMessage(msg);
                 delete msg ;
             }
-            lob_data_free(data);
+            // lob_data_free(data);
         }   
     });
 

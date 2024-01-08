@@ -23,7 +23,8 @@
 
 #include "base.h"
 #include "strutils.h"
-
+#include "message.h"
+#include "service.h"
 
 
 bool Zmq_Feed::init(const QJsonObject& json) {
@@ -61,27 +62,17 @@ bool Zmq_Feed::start() {
                 if (optret.value() <= 0) {
                     continue;
                 }
-                symbolid_t symbolid;
-                std::string text = std::string((char*)message.data(),message.size());
-                auto ss = lobutils::splitString( text,',');
-                if(ss.size() == 0){
-                    continue;
-                }
-                try {
-                    if( ss.back() == "mdl_4_24"){
-                        symbolid = (symbolid_t)std::stoul( ss[2]);
-                    }else if( ss.back() == "mdl_6_33" || ss.back() == "mdl_6_36"){
-                        symbolid = (symbolid_t) std::stoul(ss[3]);
-                    }else{
-                        continue;
+                
+                try {                    
+                    PosMessage * msg = PosMessage::decode((uint8_t*) message.data() , message.size() );
+                    if( msg ){
+                        Manager::instance().onPosMessage(msg);
                     }
                 }catch (std::exception& e ) {
-                    qWarning() << "mdl_data error:" << text.c_str() ;
+                    
                     continue;
                 }
-                lob_data_t* data = lob_data_alloc2((char*)message.data(), message.size());
-                data->symbolid = symbolid;
-                onFeedRawData(data);
+                
             }
         }
         std::cout << "thread: mdl zmq  stopped" << std::endl;

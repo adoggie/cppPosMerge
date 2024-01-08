@@ -94,3 +94,7 @@ protoc --version
 Tonglian mdl:redis 
     redis-cli -p 59379 -h 172.16.30.12
     subscribe mdl.23.1.*
+
+
+mssqlserver in linux 
+https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server?view=sql-server-ver16&tabs=ubuntu18-install%2Credhat17-install%2Cdebian8-install%2Credhat7-13-install%2Crhel7-offline

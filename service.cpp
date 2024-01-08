@@ -8,7 +8,7 @@
 #include <sstream>
 #include <functional>
 // #include <json/json.h>
-#include <qcoreapplication.h>
+
 #include <QString>
 #include <QDateTime>
 #include <QFile>
@@ -66,29 +66,17 @@ bool Manager::init(const std::string& configfile) {
     // QString str = QString( config_.symbol_price_limit_file.c_str() ).arg(currentDateTime.toString("yyyy-MM-dd"));
     
     /// parse
-    config_.symnum_of_worker = config_.lobnum / config_.workers;
-    if( config_.symnum_of_worker * config_.workers < config_.lobnum){
-        config_.symnum_of_worker ++;
-    }
-    pxlive_.resize(config_.lobnum);
-    pxhistory_.resize(config_.lobnum);
+ 
     workers_.resize(config_.workers);
 
-    // 直接读取mdl csv文件记录
-    if (config_.feed_type == "mdl_csv") {
-        decoder_ = std::make_shared<Mdl_Csv_Feed::DataDecoder>();
-        feeder_ = std::make_shared<Mdl_Csv_Feed>();
-        
-    }else if( config_.feed_type == "mdl_zmq"){  // 从zmq 接收
-        decoder_ = std::make_shared<Mdl_Zmq_Feed::DataDecoder>();
-        feeder_ = std::make_shared<Mdl_Zmq_Feed>();
-        feeder_->init(json["mdl_zmq"].toObject());
-
-    }else if( config_.feed_type == "mdl_redis"){ // 从redis接收实时行情
-        decoder_ = std::make_shared<Mdl_Redis_Feed::DataDecoder>();
-        feeder_ = std::make_shared<Mdl_Redis_Feed>();
-        feeder_->init(json["mdl_redis"].toObject());
-    
+    if( config_.feed_type == "feed_zmq"){  // 从zmq 接收
+        decoder_ = std::make_shared<Zmq_Feed::DataDecoder>();
+        feeder_ = std::make_shared<Zmq_Feed>();
+        feeder_->init(json["feed_zmq"].toObject());
+    // }else if( config_.feed_type == "feed_redis"){ // 从redis接收实时行情
+    //     decoder_ = std::make_shared<Redis_Feed::DataDecoder>();
+    //     feeder_ = std::make_shared<Redis_Feed>();
+    //     feeder_->init(json["mdl_redis"].toObject());
     }else{
         return false;
     }
@@ -98,10 +86,10 @@ bool Manager::init(const std::string& configfile) {
         worker->setDataDecoder(decoder_.get());
     }
 
-    for(symbolid_t& n : symbol_list_ ){
-        pxlive_[n] = createPxList(n);
-        pxhistory_[n] = createPxHistory(n);
-    }
+    store_redis_.init( json["store_redis"].toObject());
+    
+
+    store_mssql_.init( json["store_mssql"].toObject());
 
     // init fanouts
     auto array = json["fanout"].toArray();
@@ -139,7 +127,8 @@ void Manager::addAcEntry(const AcEntry::Ptr ac){
     }
     if( ac->symbol == SYMBOL_INDEX_ALL){
         std::vector<SymbolIndex> syms;
-        std::copy_if(symbol_index_.begin(), symbol_index_.end(), std::back_inserter(syms),[]( auto s){ return s.second;});
+        std::transform(symbol_index_.begin(), symbol_index_.end(), 
+                std::back_inserter(syms),[]( auto &s){ return s.second;});
         for( auto & s : syms){
             auto ac2 = std::make_shared<AcEntry>();            
             ac2->symbol = s;
@@ -156,48 +145,62 @@ void Manager::addAcEntry(const AcEntry::Ptr ac){
     if( ac_index_.find(ac->ac) == ac_index_.end()){        
         ac_index_.insert( std::make_pair(ac->ac, ac_index_list_.size()) );
         index_ac_.insert( std::make_pair(ac_index_list_.size(), ac->ac) );
-        ac_index_list_.push_back(ac->ac);
+        ac_index_list_.push_back(ac_index_list_.size());
     }
     if( ac_index_.find(ac->fac) == ac_index_.end()){        
         ac_index_.insert( std::make_pair(ac->fac, ac_index_list_.size()) );
         index_ac_.insert( std::make_pair(ac_index_list_.size(), ac->fac) );
-        ac_index_list_.push_back(ac->fac);
+        ac_index_list_.push_back(ac_index_list_.size());
     }
 }
 
 // load latest position from database 
 void Manager::initPosition () {
     // init symbol_pos_table_
-    PosRecord pos_list;
+    std::vector<PosRecord> pos_list;
+    store_redis_.loadPositions(pos_list);
+
     // 从数据库读取最新的仓位信息
-    for(auto p:pos_list){
+    for(auto &pr:pos_list){
         try{
-            auto sidx = getSymbolIndex(p.symbol);
+            auto sidx = getSymbolIndex(pr.symbol);
             auto & acpmtx = symbol_pos_table_.positions.at(sidx);
             std::unique_lock< std::shared_mutex> lock(acpmtx.getMutex());
             auto& acp = acpmtx.getData();
-            auto acidx = getAcIndex(p.ac);
+            auto acidx = getAcIndex(pr.ac);
             auto& p = acp.at(acidx);
-            p = p.position;
+            p = pr.position;
         }catch(const std::exception& e){
             LOG4CPLUS_WARN(getLogger("error"), LOG4CPLUS_TEXT("initPosition error:") << e.what());
-            LOG4CPLUS_WARN(getLogger("error"), LOG4CPLUS_TEXT("error:") << p.symbol << " " << p.ac << " " << p.position);  
+            LOG4CPLUS_WARN(getLogger("error"), LOG4CPLUS_TEXT("error:") << pr.symbol << " " << pr.ac << " " << pr.position);  
         }
     }
     
+}
+
+void Manager::loadAcEntries(){
+    std::vector<AcEntry::Ptr> acs;    
+    store_mssql_.loadAcEntries(acs);
+    for(auto & ac : acs){
+        addAcEntry(ac);
+    }
 }
 
 bool Manager::initTables(){
     std::vector< AcEntry::Ptr> ens;
 
     std::vector<SymbolIndex> syms;
-    std::copy_if(symbol_index_.begin(), symbol_index_.end(), std::back_inserter(syms),[]( auto s){ return s.second;});
+    std::transform(symbol_index_.begin(), symbol_index_.end(), 
+        std::back_inserter(syms),
+        []( auto s){ return s.second;});
     SymbolIndex maxIdx = *std::max_element(syms.begin(),syms.end());
 
     // init symbol_index_ and ac_index_
 
     // init symbol_pos_table_
-    symbol_pos_table_.positions.resize(maxIdx);
+    
+    symbol_pos_table_.positions = std::vector< Mutex<AcPosArray , std::shared_mutex > >(maxIdx);
+
     for( auto & acpmtx : symbol_pos_table_.positions){
         acpmtx.getData().resize(ac_index_.size());
         std::fill(acpmtx.getData().begin(), acpmtx.getData().end(), std::numeric_limits<double>::quiet_NaN());
@@ -224,6 +227,9 @@ bool Manager::initTables(){
 }
 
 bool Manager::start() {
+    store_redis_.start();
+    store_mssql_.start();
+
     for (auto& worker : workers_) {
         worker->start();
     }
@@ -234,6 +240,9 @@ bool Manager::start() {
     if( fanouts_.size()){
         timer_.start( config_.fanout_interval, std::bind(&Manager::onTimer,this) );
     }
+
+    
+
     stopped_.store(false);
 
 
@@ -290,7 +299,7 @@ void Manager::sythesizePosition(SymbolIndex sidx, uint32_t repeat){
         for(auto & b : ratio_table.ratios){
             std::vector<double> c,d;
             std::transform(a.begin(), a.end(), b.begin(), std::back_inserter(c), std::multiplies<double>());
-            std::copy_if(c.begin(), values.end(), std::back_inserter(d),
+            std::copy_if(c.begin(), c.end(), std::back_inserter(d),
                     [](double value) { return !std::isnan(value); });
             auto sum = std::accumulate(d.begin(), d.end(), 0);
             r[i++] = sum;
@@ -320,5 +329,16 @@ void Manager::sythesizePosition(SymbolIndex sidx, uint32_t repeat){
 
 // sampling & fanout
 void Manager::onTimer(){
-    sythesizePosition();
+    // sythesizePosition();
+    for(auto& si : symbol_index_){
+        sythesizePosition(si.second, config_.sythesize_repeat);
+    }
+}
+
+void Manager::onFeedRawData(lob_data_t * data){
+
+}
+
+void Manager::onMessage(Message * msg){
+    
 }

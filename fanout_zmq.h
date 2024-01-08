@@ -5,10 +5,12 @@
 #include <vector>
 #include <memory>
 #include <mutex>
-#include "lob.h"
+
 #include <atomic>
 #include <thread>
 #include <QJsonObject>
+
+#include "base.h"
 #include "lockqueue.h"
 #include "fanout.h"
 

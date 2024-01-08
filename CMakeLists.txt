@@ -41,13 +41,15 @@ add_executable(cpposmerge
   main.cpp service.cpp feed_zmq.cpp feed_zmq.h  worker.cpp worker.h 
   fanout.cpp fanout.h
   fanout_zmq.h fanout_zmq.cpp fanout_file.h fanout_file.cpp fanout_redis.cpp fanout_redis.h
+  message.h message.cpp store_redis.cpp store_redis.h
+  store_mssql.cpp store_mssql.h
   # proto/lob.pb.cc
   utils/logger.h)
 
 target_link_libraries(cpposmerge Qt${QT_VERSION_MAJOR}::Core JsonCpp::JsonCpp 
     cppzmq protobuf log4cplus::log4cplus msgpack-cxx 
     hiredis::hiredis
-    redis++::redis++_static)
+    redis++::redis++_static odbc)
 
 # add_executable(lockfree ./tests/lockfree_test.cpp ./lob.cpp)
 # add_executable(redis-test ./tests/redis_test.cpp )

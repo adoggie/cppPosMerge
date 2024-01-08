@@ -47,22 +47,22 @@ bool FanoutZMQ::start() {
         }
                 
         while (stopped_.load() == false) {
-            lob_px_record_t::Ptr px_record;
-            if (!queue_.dequeue(px_record)) {
-                continue;
-            }
-            msgpack::sbuffer buffer;
-            msgpack::pack(buffer, *px_record);
+            // lob_px_record_t::Ptr px_record;
+            // if (!queue_.dequeue(px_record)) {
+            //     continue;
+            // }
+            // msgpack::sbuffer buffer;
+            // msgpack::pack(buffer, *px_record);
 
-            std::string symbolid = std::to_string(px_record->symbolid);
-            std::ostringstream oss;
-            oss << std::setfill('0') << std::setw(6) << symbolid;
-            symbolid = oss.str();
+            // std::string symbolid = std::to_string(px_record->symbolid);
+            // std::ostringstream oss;
+            // oss << std::setfill('0') << std::setw(6) << symbolid;
+            // symbolid = oss.str();
 
-            zmq::message_t topic(symbolid.c_str(),symbolid.size());
-            zmq::message_t message(buffer.data(), buffer.size());
-            socket.send(topic,zmq::send_flags::sndmore);
-            socket.send(message,zmq::send_flags::none);
+            // zmq::message_t topic(symbolid.c_str(),symbolid.size());
+            // zmq::message_t message(buffer.data(), buffer.size());
+            // socket.send(topic,zmq::send_flags::sndmore);
+            // socket.send(message,zmq::send_flags::none);
         }
         std::cout << "LobRecordFanoutZMQ::thread:   stopped" << std::endl;
     });

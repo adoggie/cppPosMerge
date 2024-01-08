@@ -34,11 +34,11 @@ bool FanoutFile::start() {
     thread_ = std::thread([this]() {
         std::cout << "FanoutFile::thread start" << std::endl;
         while( !stopped_.load()){
-            lob_px_record_t::Ptr px_record;
-            if (!queue_.dequeue(px_record)) {
-                continue;
-            }
-            auto itr = files_.find(px_record->symbolid);
+            // lob_px_record_t::Ptr px_record;
+            // if (!queue_.dequeue(px_record)) {
+            //     continue;
+            // }
+            // auto itr = files_.find(px_record->symbolid);
             std::shared_ptr<QFile> file;
 //            if( itr == files_.end()){
 //                std::string filename = config_.store_dir + "/" + std::to_string(px_record->symbolid) + ".lob";
@@ -56,30 +56,30 @@ bool FanoutFile::start() {
 //                    continue;
 //                }
 //            }
-            std::string symbolid = std::to_string(px_record->symbolid);
-            std::ostringstream oss;
-            oss << std::setfill('0') << std::setw(6) << symbolid;
-            symbolid = oss.str();
+        //     std::string symbolid = std::to_string(px_record->symbolid);
+        //     std::ostringstream oss;
+        //     oss << std::setfill('0') << std::setw(6) << symbolid;
+        //     symbolid = oss.str();
 
-            std::string filename = config_.store_dir + "/" + symbolid + ".lob";
-            file = std::make_shared<QFile>(filename.c_str());
-            if(!file->open(QIODevice::WriteOnly)){
-                qWarning() << QString("Fanout_File open file failed! Detail:") << filename.c_str() ;
-                continue;
-            }
-            // format px_record->asks to string
-            std::string line;
-            size_t num = px_record->asks.size();
-            for(auto itr = px_record->asks.rbegin();itr != px_record->asks.rend();itr++){
-                line += "ask" + std::to_string(num--) + " \t " + std::to_string(std::get<0>(*itr)) + ":" + std::to_string( std::get<1>(*itr)) + "\n";
-            }
-            line += "----------------\n";
-            num = 1;
-            for(auto itr = px_record->bids.begin();itr != px_record->bids.end();itr++){
-                line += "bid:" + std::to_string(num ++ ) + " \t " + std::to_string(std::get<0>(*itr)) + ":" + std::to_string( std::get<1>(*itr)) + "\n";
-            }
-            file->write(line.c_str(), line.size());
-            file->flush();
+        //     std::string filename = config_.store_dir + "/" + symbolid + ".lob";
+        //     file = std::make_shared<QFile>(filename.c_str());
+        //     if(!file->open(QIODevice::WriteOnly)){
+        //         qWarning() << QString("Fanout_File open file failed! Detail:") << filename.c_str() ;
+        //         continue;
+        //     }
+        //     // format px_record->asks to string
+        //     std::string line;
+        //     size_t num = px_record->asks.size();
+        //     for(auto itr = px_record->asks.rbegin();itr != px_record->asks.rend();itr++){
+        //         line += "ask" + std::to_string(num--) + " \t " + std::to_string(std::get<0>(*itr)) + ":" + std::to_string( std::get<1>(*itr)) + "\n";
+        //     }
+        //     line += "----------------\n";
+        //     num = 1;
+        //     for(auto itr = px_record->bids.begin();itr != px_record->bids.end();itr++){
+        //         line += "bid:" + std::to_string(num ++ ) + " \t " + std::to_string(std::get<0>(*itr)) + ":" + std::to_string( std::get<1>(*itr)) + "\n";
+        //     }
+        //     file->write(line.c_str(), line.size());
+        //     file->flush();
         }
         std::cout << "FanoutFile::thread:   stopped" << std::endl;
     });
