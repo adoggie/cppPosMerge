@@ -30,7 +30,7 @@ log4cplus::Logger& getLogger(const std::string& name){
     if(!loggers){
         loggers = std::make_shared<std::map<std::string,log4cplus::Logger>>();
         (*loggers)["main"] = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("cpposmerge"));
-        (*loggers)["error"] = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("cpposmerge-error"));
+        (*loggers)["error"] = log4cplus::Logger::getInstance(LOG4CPLUS_TEXT("error"));
     }
 
     if( name == "error"){
@@ -40,21 +40,21 @@ log4cplus::Logger& getLogger(const std::string& name){
 }
 
 int main(int argc, char *argv[]){
-   const  char *env = std::getenv("LOBSTER_CONFIG");
+   const  char *env = std::getenv("CPPOSMGR_CONFIG");
     if( env == nullptr){
-        std::cout<<"LOBSTER_CONFIG not set."<<std::endl;
+        std::cout<<"CPPOSMGR_CONFIG not set."<<std::endl;
         env = "settings.json";
         // return 1;
     }
 
     log4cplus::Initializer initializer;
-    log4cplus::PropertyConfigurator::doConfigure("lobsterlog.properties");
+    log4cplus::PropertyConfigurator::doConfigure("cpposmerge.properties");
 
 
-    LOG4CPLUS_INFO(getLogger(), LOG4CPLUS_TEXT("AppService[lobster] started.."));
+    LOG4CPLUS_INFO(getLogger(), LOG4CPLUS_TEXT("AppService[cpposmerge] started.."));
 
     if( !Manager::instance().init(env)){
-        LOG4CPLUS_ERROR_FMT(getLogger(),"LobService init Error.");
+        LOG4CPLUS_ERROR_FMT(getLogger(),"cpposmerge Service init Error.");
         return 1;
     }
     Manager::instance().start();

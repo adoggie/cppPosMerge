@@ -49,9 +49,14 @@ add_executable(cpposmerge
 target_link_libraries(cpposmerge Qt${QT_VERSION_MAJOR}::Core JsonCpp::JsonCpp 
     cppzmq protobuf log4cplus::log4cplus msgpack-cxx 
     hiredis::hiredis
-    redis++::redis++_static odbc)
+    redis++::redis++_static sybdb)
 
-# add_executable(lockfree ./tests/lockfree_test.cpp ./lob.cpp)
+add_executable(test-sql tests/test-mssql.cpp store_mssql.cpp tests/test-nan.h tests/test-nan.h)
+target_link_libraries(test-sql Qt${QT_VERSION_MAJOR}::Core JsonCpp::JsonCpp 
+cppzmq protobuf log4cplus::log4cplus msgpack-cxx 
+hiredis::hiredis
+redis++::redis++_static  sybdb )
+
 # add_executable(redis-test ./tests/redis_test.cpp )
 # target_link_libraries(lockfree msgpack-cxx  )
 # target_link_libraries(redis-test hiredis::hiredis redis++::redis++_static  )

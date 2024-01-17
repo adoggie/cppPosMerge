@@ -98,3 +98,10 @@ Tonglian mdl:redis
 
 mssqlserver in linux 
 https://learn.microsoft.com/en-us/sql/connect/odbc/linux-mac/installing-the-microsoft-odbc-driver-for-sql-server?view=sql-server-ver16&tabs=ubuntu18-install%2Credhat17-install%2Cdebian8-install%2Credhat7-13-install%2Crhel7-offline
+
+freetds
+sudo apt install libprotobuf-dev libprotobuf-lite23 libprotoc23 freetds-dev
+sudo yum install freetds-devel
+
+http://felix-lin.com/linux/%E4%BD%BF%E7%94%A8-freetds-%E5%AD%98%E5%8F%96-sql-server/
+ tsql -S 111.229.216.183 -U yuyang -P

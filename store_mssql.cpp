@@ -3,14 +3,81 @@
 // #include "db_mssql.h"
 
 #include <iostream>
-#include <sql.h>
-#include <sqlext.h>
+#include <cstdlib>
+#include <stdlib.h>
+//#include <sql.h>
+//#include <sqlext.h>
+#include <QtCore>
+
+// https://www.sqlapi.com/
+// https://www.sqlapi.com/HowTo/
+
+// https://www.easysoft.com/developer/languages/c/odbc_tutorial.html
+#include <iostream>
+#include <string>
+#include <sybfront.h>
+#include <sybdb.h>
+#include "./utils/logger.h"
 
 
+void endDatabase(DBPROCESS * dbproc) {
+    dbclose(dbproc);
+    dbexit();
+}
+
+DBPROCESS * prepareDatabase( const StoreMsSql::Settings & config) {
+    LOGINREC *login;
+    DBPROCESS *dbproc;
+    RETCODE result_code;
+    std::string server = config.server_addr;
+    std::string user = config.db_user;
+    std::string password = config.db_password;
+    std::string database = config.db_name;
+    std::string query = "SELECT count(*) FROM p_follow";
+
+    // Initialize FreeTDS
+    if (dbinit() == FAIL) {
+        LOG4CPLUS_DEBUG(getLogger("error"), "Failed to initialize FreeTDS");
+        return nullptr;
+    }
+
+    // Allocate a login structure
+    login = dblogin();
+
+    // Set the login credentials
+    DBSETLUSER(login, user.c_str());
+    DBSETLPWD(login, password.c_str());
+
+    // Connect to the SQL Server
+    dbproc = dbopen(login, server.c_str());
+
+    if (dbproc == NULL) {
+        LOG4CPLUS_DEBUG(getLogger("error"), "Failed to connect to SQL Server" );
+        dbexit();
+        return nullptr;
+    }
+
+    // Select the database
+    result_code = dbuse(dbproc, database.c_str());
+
+    if (result_code == FAIL) {
+        LOG4CPLUS_DEBUG(getLogger("error"),"Failed to select database" );
+        dbclose(dbproc);
+        dbexit();
+        return nullptr;
+    }
+
+    return dbproc;
+}
 
 bool StoreMsSql::init(const QJsonObject& settings){
-    config_.server_addr = settings.value("server_addr").toString("tcp://127.0.0.1:6379").toStdString();
-
+    // mssql();
+    config_.server_addr = settings.value("server_addr").toString("").toStdString();
+    config_.db_port = settings.value("port").toInt(1433);
+    config_.db_name = settings.value("db").toString("Future").toStdString();
+    config_.db_password = settings.value("passwd").toString("").toStdString();
+    config_.db_user = settings.value("user").toString("yuyang").toStdString();
+    config_.enable = settings.value("enable").toBool(true);
     return true ;
 }
 
@@ -18,18 +85,18 @@ bool StoreMsSql::start() {
     stopped_.store(false);
     // redis_ = std::make_shared<sw::redis::Redis>(config_.server_addr);
 
-    thread_ = std::thread([this]() {
-        std::cout << "StoreRedis::thread start" << std::endl;
-
-        while( !stopped_.load()){
-            Item::Ptr item;
-            if (!queue_.dequeue(item)) {
-                continue;
-            }
-           
-        }
-        std::cout << "StoreRedis::thread:   stopped" << std::endl;
-    });
+//    thread_ = std::thread([this]() {
+//        LOG4CPLUS_DEBUG(getLogger(), "StoreMsSql::thread start" );
+//        while( !stopped_.load()){
+//            Item::Ptr item;
+//            if (!queue_.dequeue(item)) {
+//                continue;
+//            }
+//
+//        }
+//        LOG4CPLUS_DEBUG(getLogger(), "StoreMsSql::thread stopped" );
+////        std::cout << "StoreRedis::thread:   stopped" << std::endl;
+//    });
     return true;
 }
 
@@ -41,56 +108,44 @@ void StoreMsSql::stop() {
 
 
 void StoreMsSql::loadAcEntries( std::vector<AcEntry::Ptr> & acs){
+    auto dbproc = prepareDatabase(config_);
+//    std::string SQL_CMD = "select ac,f_ac,ratio,symbol from p_follow";
+//    std::string SQL_CMD = "select top 200 ac,f_ac, ratio,pratio,stock,type,f_acisbasicacname from p_follow";
+    std::string SQL_CMD = "select  ac,f_ac, ratio,pratio,stock,type,f_acisbasicacname from p_follow";
 
-}
-
-// https://www.sqlapi.com/
-// https://www.sqlapi.com/HowTo/
-
-// https://www.easysoft.com/developer/languages/c/odbc_tutorial.html
-
-int mssql() {
-    SQLHENV envHandle; // 环境句柄
-    SQLHDBC dbcHandle; // 数据库连接句柄
-    SQLHSTMT stmtHandle; // SQL语句句柄
-    SQLRETURN retCode;
-
-    // 初始化环境句柄
-    retCode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &envHandle);
-    retCode = SQLSetEnvAttr(envHandle, SQL_ATTR_ODBC_VERSION, (SQLPOINTER)SQL_OV_ODBC3, SQL_IS_UINTEGER);
-
-    // 初始化数据库连接句柄
-    retCode = SQLAllocHandle(SQL_HANDLE_DBC, envHandle, &dbcHandle);
-
-    // 建立数据库连接
-    std::string connectionString = "DRIVER={ODBC Driver 17 for SQL Server};SERVER=your_server_address;DATABASE=your_database_name;UID=your_username;PWD=your_password;";
-    SQLCHAR* connStr = (SQLCHAR*)connectionString.c_str();
-    retCode = SQLDriverConnect(dbcHandle, NULL, connStr, SQL_NTS, NULL, 0, NULL, SQL_DRIVER_NOPROMPT);
-
-    // 创建SQL语句句柄
-    retCode = SQLAllocHandle(SQL_HANDLE_STMT, dbcHandle, &stmtHandle);
-
-    // 执行SQL查询语句
-    retCode = SQLExecDirect(stmtHandle, (SQLCHAR*)"SELECT * FROM your_table_name", SQL_NTS);
-
-    // 处理结果集
-    SQLCHAR col1Data[255], col2Data[255];
-    SQLLEN indicator1, indicator2;
-
-    while (retCode = SQLFetch(stmtHandle) != SQL_NO_DATA) {
-        retCode = SQLGetData(stmtHandle, 1, SQL_C_CHAR, col1Data, sizeof(col1Data), &indicator1);
-        retCode = SQLGetData(stmtHandle, 2, SQL_C_CHAR, col2Data, sizeof(col2Data), &indicator2);
-
-        // 处理从表中读取的数据
-        std::cout << "Column 1: " << std::string((char*)col1Data) << std::endl;
-        std::cout << "Column 2: " << std::string((char*)col2Data) << std::endl;
+    RETCODE rc;
+    rc = dbcmd(dbproc, SQL_CMD.c_str());
+    if( rc == FAIL){
+        LOG4CPLUS_DEBUG(getLogger("error"), "dbcmd() failed.");
+        return;
     }
+    if (dbsqlexec(dbproc) == FAIL) {
+        LOG4CPLUS_DEBUG(getLogger("error"),"dbsqlexec() failed.\n");
+        return;
+    }
+    
+    while ((rc = dbresults(dbproc)) != NO_MORE_RESULTS) {
+        if (rc == FAIL) {
+            LOG4CPLUS_DEBUG(getLogger("error"),"dbresults failed\n");
+            return;
+        }
+        while (dbnextrow(dbproc) != NO_MORE_ROWS) {
+            AcEntry::Ptr ac = std::make_shared<AcEntry>();
+            DBINT len;
+//            len = dbcollen(dbproc, 1);
+//            len = dbcollen(dbproc, 3); // ratio 8
+//            len = dbcollen(dbproc, 5); // stock
+            ac->ac = std::string( (char*)dbdata(dbproc,1));
+            ac->fac = std::string( (char*)dbdata(dbproc,2));
+            ac->ratio = *(DBFLT8 *) dbdata(dbproc,3);
+            std::string sval = (char*)dbdata(dbproc,5);
+            ac->symbol = (SymbolIndex) std::stoul(sval);
+            acs.push_back(ac);
 
-    // 释放资源
-    retCode = SQLFreeHandle(SQL_HANDLE_STMT, stmtHandle);
-    retCode = SQLDisconnect(dbcHandle);
-    retCode = SQLFreeHandle(SQL_HANDLE_DBC, dbcHandle);
-    retCode = SQLFreeHandle(SQL_HANDLE_ENV, envHandle);
-
-    return 0;
+        }
+    }
+    endDatabase(dbproc);
+    
 }
+
+

@@ -18,8 +18,6 @@
 #include <QJsonArray>
 #include <QtCore>
 
-
-
 #include "service.h"
 #include "feed_zmq.h"
 #include "fanout_file.h"
@@ -27,12 +25,8 @@
 #include "fanout_redis.h"
 #include "utils/logger.h"
 
-
-
 bool Manager::init(const std::string& configfile) {
-    
     LOG4CPLUS_INFO(getLogger(), LOG4CPLUS_TEXT("Service::init.."));
-
     QFile ifs(configfile.c_str());
     // if (!ifs.is_open()) {
     if(!ifs.open(QIODevice::ReadOnly | QIODevice::Text) ){
@@ -59,13 +53,14 @@ bool Manager::init(const std::string& configfile) {
     // Access specific values from the JSON object
     QJsonObject json = jsonDoc.object();
     // config_.lobnum = json.value("lobnum").toInt(1000000);
-    
+    config_.feed_type = json.value("feed_type").toString().toStdString();
 
+    auto symbols = json["symbol_list"].toObject();
+    for (auto it = symbols.begin();it!= symbols.end();it++){
+        std::cout<< it.key().toStdString() << std::string(",") << it.value().toString().toStdString() << std::endl;
+    }
     /// load price limit data 
     QDateTime currentDateTime = QDateTime::currentDateTime();
-    // QString str = QString( config_.symbol_price_limit_file.c_str() ).arg(currentDateTime.toString("yyyy-MM-dd"));
-    
-    /// parse
  
     workers_.resize(config_.workers);
 
@@ -87,10 +82,7 @@ bool Manager::init(const std::string& configfile) {
     }
 
     store_redis_.init( json["store_redis"].toObject());
-    
-
     store_mssql_.init( json["store_mssql"].toObject());
-
     // init fanouts
     auto array = json["fanout"].toArray();
     for ( const auto & obj : array){
@@ -196,7 +188,6 @@ bool Manager::initTables(){
     SymbolIndex maxIdx = *std::max_element(syms.begin(),syms.end());
 
     // init symbol_index_ and ac_index_
-
     // init symbol_pos_table_
     
     symbol_pos_table_.positions = std::vector< Mutex<AcPosArray , std::shared_mutex > >(maxIdx);
@@ -206,7 +197,6 @@ bool Manager::initTables(){
         std::fill(acpmtx.getData().begin(), acpmtx.getData().end(), std::numeric_limits<double>::quiet_NaN());
     }
     
-
     // init ratio_tableset_
     symbol_ratio_tableset_.tables.resize(symbol_index_.size());
     for( auto & ratio_table : symbol_ratio_tableset_.tables){
@@ -222,7 +212,6 @@ bool Manager::initTables(){
         auto & ratio_arr = ratio_table.ratios.at(ac_index_.at(ac->ac)) ;
         ratio_arr.at(ac_index_.at(ac->fac)) = ac->ratio;        
     }
-   
     return true;
 }
 
@@ -241,11 +230,7 @@ bool Manager::start() {
         timer_.start( config_.fanout_interval, std::bind(&Manager::onTimer,this) );
     }
 
-    
-
     stopped_.store(false);
-
-
     return true;
 }
 
@@ -341,4 +326,13 @@ void Manager::onFeedRawData(lob_data_t * data){
 
 void Manager::onMessage(Message * msg){
     
+}
+
+
+SymbolIndex Manager::getSymbolIndex(const std::string& symbol){
+    return symbol_index_.at(symbol);
+}
+
+AcIndex Manager::getAcIndex(const std::string& ac){
+    return ac_index_.at(ac);
 }

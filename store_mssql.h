@@ -22,7 +22,11 @@ class  StoreMsSql{
 public:
     typedef std::shared_ptr<StoreMsSql> Ptr;
     struct Settings{
-        std::string server_addr; //  fanout server address        
+        std::string server_addr; //  fanout server address  
+        uint32_t    db_port;
+        std::string db_user;
+        std::string db_password;
+        std::string db_name;      
         bool enable;
     };
 
